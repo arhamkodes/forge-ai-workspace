@@ -10,11 +10,59 @@ st.set_page_config(
 )
 
 
+# -----------------------------
+# Page Header
+# -----------------------------
+
 st.title("🤖 Forge AI Workspace")
 st.write("Your modular AI workspace platform.")
 
 
-st.divider()
+# -----------------------------
+# Load Workspaces
+# -----------------------------
+
+workspaces = get_workspaces()
+
+
+# -----------------------------
+# Sidebar
+# -----------------------------
+
+with st.sidebar:
+    st.header("Workspace")
+
+    if workspaces:
+        workspace_options = {
+            workspace.name: workspace
+            for workspace in workspaces
+        }
+
+        selected_workspace_name = st.selectbox(
+            "Select a workspace",
+            options=list(workspace_options.keys()),
+        )
+
+        selected_workspace = workspace_options[selected_workspace_name]
+
+        st.divider()
+
+        st.write("**Workspace ID:**", selected_workspace.id)
+
+        if selected_workspace.description:
+            st.write("**Description:**")
+            st.caption(selected_workspace.description)
+        else:
+            st.caption("No description provided.")
+
+    else:
+        selected_workspace = None
+        st.info("Create a workspace to get started.")
+
+
+# -----------------------------
+# Create Workspace
+# -----------------------------
 
 st.header("Create a workspace")
 
@@ -46,23 +94,24 @@ with st.form("create_workspace_form"):
 
 st.divider()
 
-st.header("Your workspaces")
 
-workspaces = get_workspaces()
+# -----------------------------
+# Selected Workspace
+# -----------------------------
 
-if not workspaces:
-    st.info("No workspaces yet. Create your first workspace above.")
+if selected_workspace:
+    st.header(f"Workspace: {selected_workspace.name}")
+
+    if selected_workspace.description:
+        st.write(selected_workspace.description)
+    else:
+        st.caption("This workspace does not have a description yet.")
+
+    st.info(
+        "This is your selected workspace. "
+        "Chat, documents, and AI tools will be connected here next."
+    )
+
 else:
-    for workspace in workspaces:
-        with st.container(border=True):
-            st.subheader(workspace.name)
-
-            if workspace.description:
-                st.write(workspace.description)
-            else:
-                st.caption("No description provided.")
-
-            st.caption(
-                f"Workspace ID: {workspace.id} | "
-                f"Created: {workspace.created_at}"
-            )
+    st.header("Welcome to Forge AI")
+    st.write("Create your first workspace to begin.")
