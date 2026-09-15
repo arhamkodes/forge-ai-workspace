@@ -1,6 +1,7 @@
 import streamlit as st
 
 from database.repository import create_workspace, get_workspaces
+from services.ai_router import generate_ai_response
 
 
 st.set_page_config(
@@ -11,11 +12,11 @@ st.set_page_config(
 
 
 # -----------------------------
-# Page Header
+# Session State
 # -----------------------------
 
-st.title("🤖 Forge AI Workspace")
-st.write("Your modular AI workspace platform.")
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 
 # -----------------------------
@@ -55,63 +56,119 @@ with st.sidebar:
         else:
             st.caption("No description provided.")
 
+        st.divider()
+
+        st.caption("AI Provider")
+        st.selectbox(
+            "Choose provider",
+            options=["gemini"],
+            index=0,
+        )
+
     else:
         selected_workspace = None
         st.info("Create a workspace to get started.")
 
 
 # -----------------------------
+# Header
+# -----------------------------
+
+st.title("🤖 Forge AI Workspace")
+
+if selected_workspace:
+    st.caption(f"Current workspace: {selected_workspace.name}")
+else:
+    st.caption("Create a workspace to begin.")
+
+
+# -----------------------------
 # Create Workspace
 # -----------------------------
 
-st.header("Create a workspace")
+with st.expander("Create a new workspace"):
+    with st.form("create_workspace_form"):
+        workspace_name = st.text_input(
+            "Workspace name",
+            placeholder="Example: AI Web Development",
+        )
 
-with st.form("create_workspace_form"):
-    workspace_name = st.text_input(
-        "Workspace name",
-        placeholder="Example: My AI Research Workspace",
-    )
+        workspace_description = st.text_area(
+            "Description",
+            placeholder="What will you use this workspace for?",
+        )
 
-    workspace_description = st.text_area(
-        "Description",
-        placeholder="What will you use this workspace for?",
-    )
+        submitted = st.form_submit_button("Create workspace")
 
-    submitted = st.form_submit_button("Create workspace")
+        if submitted:
+            if not workspace_name.strip():
+                st.error("Workspace name is required.")
+            else:
+                create_workspace(
+                    name=workspace_name.strip(),
+                    description=workspace_description.strip() or None,
+                )
 
-    if submitted:
-        if not workspace_name.strip():
-            st.error("Workspace name is required.")
-        else:
-            create_workspace(
-                name=workspace_name.strip(),
-                description=workspace_description.strip() or None,
-            )
-
-            st.success("Workspace created successfully.")
-            st.rerun()
+                st.success("Workspace created successfully.")
+                st.rerun()
 
 
 st.divider()
 
 
 # -----------------------------
-# Selected Workspace
+# Chat History
+# -----------------------------
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+
+# -----------------------------
+# Chat Input
 # -----------------------------
 
 if selected_workspace:
-    st.header(f"Workspace: {selected_workspace.name}")
-
-    if selected_workspace.description:
-        st.write(selected_workspace.description)
-    else:
-        st.caption("This workspace does not have a description yet.")
-
-    st.info(
-        "This is your selected workspace. "
-        "Chat, documents, and AI tools will be connected here next."
+    user_prompt = st.chat_input(
+        "Ask something about your project..."
     )
 
+    if user_prompt:
+        st.session_state.messages.append(
+            {
+                "role": "user",
+                "content": user_prompt,
+            }
+        )
+
+        with st.chat_message("user"):
+            st.markdown(user_prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:
+                    response = generate_ai_response(
+                        message=user_prompt,
+                        provider="gemini",
+                        system_instruction=(
+                            "You are an AI assistant inside a project "
+                            "workspace. Give clear, practical, and helpful "
+                            "answers. Keep the user's project context in mind."
+                        ),
+                    )
+
+                    st.markdown(response)
+
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": response,
+                        }
+                    )
+
+                except Exception as error:
+                    st.error(f"AI request failed: {error}")
+
 else:
-    st.header("Welcome to Forge AI")
-    st.write("Create your first workspace to begin.")
+    st.info("Create or select a workspace before starting a chat.")
