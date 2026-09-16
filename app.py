@@ -1,6 +1,12 @@
+from database.repository import (
+    create_workspace,
+    get_chat_messages,
+    get_workspaces,
+    save_chat_message,
+)
 import streamlit as st
 
-from database.repository import create_workspace, get_workspaces
+
 from services.ai_router import generate_ai_response
 
 
@@ -15,8 +21,8 @@ st.set_page_config(
 # Session State
 # -----------------------------
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "selected_workspace_id" not in st.session_state:
+    st.session_state.selected_workspace_id = None
 
 
 # -----------------------------
@@ -71,6 +77,18 @@ with st.sidebar:
 
 
 # -----------------------------
+# Load Persistent Chat History
+# -----------------------------
+
+if selected_workspace:
+    if (
+        st.session_state.selected_workspace_id
+        != selected_workspace.id
+    ):
+        st.session_state.selected_workspace_id = selected_workspace.id
+
+
+# -----------------------------
 # Header
 # -----------------------------
 
@@ -120,9 +138,12 @@ st.divider()
 # Chat History
 # -----------------------------
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+if selected_workspace:
+    saved_messages = get_chat_messages(selected_workspace.id)
+
+    for message in saved_messages:
+        with st.chat_message(message.role):
+            st.markdown(message.content)
 
 
 # -----------------------------
@@ -135,11 +156,10 @@ if selected_workspace:
     )
 
     if user_prompt:
-        st.session_state.messages.append(
-            {
-                "role": "user",
-                "content": user_prompt,
-            }
+        save_chat_message(
+            workspace_id=selected_workspace.id,
+            role="user",
+            content=user_prompt,
         )
 
         with st.chat_message("user"):
@@ -158,14 +178,13 @@ if selected_workspace:
                         ),
                     )
 
-                    st.markdown(response)
-
-                    st.session_state.messages.append(
-                        {
-                            "role": "assistant",
-                            "content": response,
-                        }
+                    save_chat_message(
+                        workspace_id=selected_workspace.id,
+                        role="assistant",
+                        content=response,
                     )
+
+                    st.markdown(response)
 
                 except Exception as error:
                     st.error(f"AI request failed: {error}")
