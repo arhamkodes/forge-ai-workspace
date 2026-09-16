@@ -168,9 +168,14 @@ if selected_workspace:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
+                    conversation_history = get_chat_messages(
+                        selected_workspace.id
+                    )
+
                     response = generate_ai_response(
                         message=user_prompt,
                         provider="gemini",
+                        conversation_history=conversation_history,
                         system_instruction=(
                             "You are an AI assistant inside a project "
                             "workspace. Give clear, practical, and helpful "
